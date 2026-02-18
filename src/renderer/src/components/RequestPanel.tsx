@@ -59,9 +59,9 @@ export default function RequestPanel() {
   const enabledCookiesCount = (activeRequest.cookies ?? []).filter((c) => c.enabled && c.key).length
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" onKeyDown={handleKeyDown}>
       {/* URL Bar */}
-      <div className="flex items-center gap-2 p-3" onKeyDown={handleKeyDown}>
+      <div className="flex items-center gap-2 p-3">
         {/* Method Dropdown */}
         <select
           value={activeRequest.method}
