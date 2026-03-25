@@ -48,6 +48,7 @@ export interface RestResponse {
   body: string
   size: number // bytes
   time: number // milliseconds
+  rawRequest: string
 }
 
 // --- History Entry ---

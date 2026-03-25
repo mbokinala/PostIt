@@ -5,7 +5,7 @@ import { html } from '@codemirror/lang-html'
 import { xml } from '@codemirror/lang-xml'
 import { useRequestStore } from '../stores/requestStore'
 
-type Tab = 'body' | 'headers'
+type Tab = 'body' | 'headers' | 'console'
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -116,7 +116,7 @@ export default function ResponsePanel() {
 
         <div className="ml-auto flex items-center gap-2">
           {/* Tabs */}
-          {(['body', 'headers'] as Tab[]).map((tab) => (
+          {(['body', 'headers', 'console'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -190,6 +190,24 @@ export default function ResponsePanel() {
             </tbody>
           </table>
         )}
+
+        {activeTab === 'console' && (() => {
+          const rawResponse = [
+            `HTTP/1.1 ${activeResponse.status} ${activeResponse.statusText}`,
+            ...Object.entries(activeResponse.headers).map(([k, v]) => `${k}: ${v}`),
+            '',
+            activeResponse.body,
+          ].join('\n')
+          return (
+            <pre className="p-3 text-xs font-mono text-green-300 whitespace-pre-wrap break-all leading-relaxed">
+              {activeResponse.rawRequest || '(no request data)'}
+              {'\n\n'}
+              <span className="text-gray-500">{'─'.repeat(40)}</span>
+              {'\n\n'}
+              {rawResponse}
+            </pre>
+          )
+        })()}
       </div>
     </div>
   )

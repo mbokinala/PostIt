@@ -78,7 +78,8 @@ async function executeRequest(request: RestRequest): Promise<RestResponse> {
         headers: {},
         body: `Invalid URL: ${request.url}`,
         size: 0,
-        time: Date.now() - startTime
+        time: Date.now() - startTime,
+        rawRequest: ''
       }
     }
 
@@ -161,6 +162,22 @@ async function executeRequest(request: RestRequest): Promise<RestResponse> {
       }
     }
 
+    // Build raw HTTP request text
+    const urlPath = url.pathname + url.search
+    const rawLines: string[] = [`${request.method} ${urlPath} HTTP/1.1`, `Host: ${url.host}`]
+    for (const [key, value] of Object.entries(headers)) {
+      rawLines.push(`${key}: ${value}`)
+    }
+    let rawRequest = rawLines.join('\n')
+    if (fetchOptions.body != null) {
+      if (typeof fetchOptions.body === 'string') {
+        rawRequest += '\n\n' + fetchOptions.body
+      } else {
+        // FormData — boundary is set by fetch, show placeholder
+        rawRequest += '\n\n[multipart/form-data body]'
+      }
+    }
+
     const res = await fetch(url.toString(), fetchOptions)
     const bodyText = await res.text()
     const elapsed = Date.now() - startTime
@@ -177,7 +194,8 @@ async function executeRequest(request: RestRequest): Promise<RestResponse> {
       headers: responseHeaders,
       body: bodyText,
       size: new TextEncoder().encode(bodyText).byteLength,
-      time: elapsed
+      time: elapsed,
+      rawRequest
     }
   } catch (err: any) {
     const elapsed = Date.now() - startTime
@@ -189,7 +207,8 @@ async function executeRequest(request: RestRequest): Promise<RestResponse> {
         headers: {},
         body: 'The request was aborted (30s timeout exceeded)',
         size: 0,
-        time: elapsed
+        time: elapsed,
+        rawRequest: ''
       }
     }
 
@@ -217,7 +236,8 @@ async function executeRequest(request: RestRequest): Promise<RestResponse> {
       headers: {},
       body,
       size: 0,
-      time: elapsed
+      time: elapsed,
+      rawRequest: ''
     }
   } finally {
     clearTimeout(timeout)
