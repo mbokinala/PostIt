@@ -8,6 +8,7 @@ import type {
   Collection,
   HistoryEntry
 } from '@shared/ipc'
+import type { ParsedCurl } from '../utils/parseCurl'
 import { v4 as uuidv4 } from 'uuid'
 
 // --- Helper to create a blank request ---
@@ -54,6 +55,7 @@ interface RequestState {
   updateBodyContent: (content: string) => void
   updateBodyFormData: (formData: KeyValuePair[]) => void
 
+  importCurl: (parsed: ParsedCurl) => void
   sendRequest: () => Promise<void>
   resetRequest: () => void
 
@@ -107,6 +109,19 @@ export const useRequestStore = create<RequestState>((set, get) => ({
       activeRequest: {
         ...s.activeRequest,
         body: { ...s.activeRequest.body, formData }
+      }
+    })),
+
+  importCurl: (parsed) =>
+    set((s) => ({
+      activeRequest: {
+        ...s.activeRequest,
+        method: parsed.method,
+        url: parsed.url,
+        headers: parsed.headers,
+        params: parsed.params,
+        cookies: parsed.cookies,
+        body: parsed.body,
       }
     })),
 

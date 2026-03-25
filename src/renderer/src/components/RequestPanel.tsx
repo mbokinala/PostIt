@@ -4,6 +4,7 @@ import { json } from '@codemirror/lang-json'
 import { useRequestStore } from '../stores/requestStore'
 import KeyValueEditor from './KeyValueEditor'
 import type { HttpMethod, BodyType } from '@shared/ipc'
+import { isCurlCommand, parseCurl } from '../utils/parseCurl'
 
 const METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
 
@@ -40,12 +41,22 @@ export default function RequestPanel() {
     updateBodyType,
     updateBodyContent,
     updateBodyFormData,
+    importCurl,
     sendRequest,
   } = useRequestStore()
 
   const handleSend = () => {
     if (!activeRequest.url.trim()) return
     sendRequest()
+  }
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData('text')
+    if (isCurlCommand(text)) {
+      e.preventDefault()
+      const parsed = parseCurl(text)
+      if (parsed) importCurl(parsed)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -78,9 +89,10 @@ export default function RequestPanel() {
         {/* URL Input */}
         <input
           type="text"
-          placeholder="Enter request URL..."
+          placeholder="Enter request URL or paste curl command..."
           value={activeRequest.url}
           onChange={(e) => updateUrl(e.target.value)}
+          onPaste={handlePaste}
           className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
         />
 
