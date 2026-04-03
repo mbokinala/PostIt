@@ -1,6 +1,6 @@
 {
   "name": "post-it",
-  "version": "0.1.0",
+  "version": "0.0.2",
   "description": "A desktop REST client built with Electron and React",
   "main": "./dist/main/index.js",
   "scripts": {
@@ -33,6 +33,7 @@
     "@uiw/react-codemirror": "^4.23.0",
     "electron-squirrel-startup": "^1.0.1",
     "electron-store": "^8.2.0",
+    "electron-updater": "^6.8.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "uuid": "^10.0.0",
@@ -46,6 +47,7 @@
     "@electron-forge/maker-zip": "^7.11.1",
     "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
     "@electron-forge/plugin-fuses": "^7.11.1",
+    "@electron-forge/publisher-github": "^7.11.1",
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@electron-toolkit/utils": "^3.0.0",

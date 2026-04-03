@@ -3,8 +3,12 @@ const { FuseV1Options, FuseVersion } = require("@electron/fuses");
 
 module.exports = {
   packagerConfig: {
+    appBundleId: "com.mbokinala.post-it",
     asar: true,
-    osxSign: {},
+    extraResource: ["./app-update.yml"],
+    osxSign: {
+      identity: "Developer ID Application: Manav Bokinala (4XUDFLD5RY)",
+    },
     osxNotarize: {
       tool: "notarytool",
       appleApiKey: "./AuthKey.p8",
@@ -31,6 +35,19 @@ module.exports = {
       config: {},
     },
   ],
+  publishers: [
+    {
+      name: "@electron-forge/publisher-github",
+      config: {
+        repository: {
+          owner: "mbokinala",
+          name: "PostIt",
+        },
+        prerelease: false,
+        draft: true,
+      },
+    },
+  ],
   plugins: [
     {
       name: "@electron-forge/plugin-auto-unpack-natives",
@@ -44,8 +61,8 @@ module.exports = {
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
+      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,
+      [FuseV1Options.OnlyLoadAppFromAsar]: false,
     }),
   ],
 };

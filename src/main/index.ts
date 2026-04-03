@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain, shell, session } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, session, Menu, dialog } from 'electron'
 import { join } from 'path'
+import { autoUpdater } from 'electron-updater'
 import { is } from '@electron-toolkit/utils'
 import { IPC_CHANNELS } from '../types/ipc'
 import type { RestRequest, RestResponse, Collection, HistoryEntry } from '../types/ipc'
@@ -313,6 +314,133 @@ function registerIpcHandlers(): void {
   })
 }
 
+// --- Auto-Updater ---
+
+function setupAutoUpdater(): void {
+  autoUpdater.autoDownload = false
+
+  autoUpdater.on('update-available', (info) => {
+    dialog
+      .showMessageBox({
+        type: 'info',
+        title: 'Update Available',
+        message: `Version ${info.version} is available. Would you like to download it?`,
+        buttons: ['Download', 'Later']
+      })
+      .then((result) => {
+        if (result.response === 0) {
+          autoUpdater.downloadUpdate()
+        }
+      })
+  })
+
+  autoUpdater.on('update-not-available', () => {
+    if (manualUpdateCheck) {
+      dialog.showMessageBox({
+        type: 'info',
+        title: 'No Updates',
+        message: 'You are running the latest version.'
+      })
+      manualUpdateCheck = false
+    }
+  })
+
+  autoUpdater.on('update-downloaded', () => {
+    dialog
+      .showMessageBox({
+        type: 'info',
+        title: 'Update Ready',
+        message: 'Update downloaded. The application will restart to apply the update.',
+        buttons: ['Restart Now', 'Later']
+      })
+      .then((result) => {
+        if (result.response === 0) {
+          autoUpdater.quitAndInstall()
+        }
+      })
+  })
+
+  autoUpdater.on('error', (err) => {
+    if (manualUpdateCheck) {
+      dialog.showMessageBox({
+        type: 'error',
+        title: 'Update Error',
+        message: `Failed to check for updates: ${err.message}`
+      })
+      manualUpdateCheck = false
+    }
+  })
+}
+
+let manualUpdateCheck = false
+
+function checkForUpdates(): void {
+  manualUpdateCheck = true
+  autoUpdater.checkForUpdates()
+}
+
+// --- Application Menu ---
+
+function setupMenu(): void {
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        {
+          label: 'Check for Updates...',
+          click: () => checkForUpdates()
+        },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { type: 'separator' },
+        { role: 'front' }
+      ]
+    }
+  ]
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+}
+
 // --- App Lifecycle ---
 
 app.whenReady().then(() => {
@@ -330,8 +458,15 @@ app.whenReady().then(() => {
     })
   }
 
+  setupMenu()
+  setupAutoUpdater()
   registerIpcHandlers()
   createWindow()
+
+  // Check for updates silently on launch (production only)
+  if (!is.dev) {
+    autoUpdater.checkForUpdatesAndNotify()
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
