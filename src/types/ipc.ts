@@ -1,5 +1,5 @@
 // ============================================================
-// Shared IPC Types for REST Client
+// Shared IPC Types for PostIt
 // Used by main process, preload, and renderer
 // ============================================================
 

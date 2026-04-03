@@ -112,7 +112,7 @@ export default function Sidebar() {
       {/* Header */}
       <div className="p-3 border-b border-slate-700">
         <div className="flex items-center justify-between">
-          <h1 className="text-sm font-bold text-slate-200 tracking-wide uppercase">REST Client</h1>
+          <h1 className="text-sm font-bold text-slate-200 tracking-wide uppercase">PostIt</h1>
           <button
             onClick={resetRequest}
             className="text-xs text-slate-500 hover:text-blue-400 transition-colors"

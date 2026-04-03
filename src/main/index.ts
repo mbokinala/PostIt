@@ -29,7 +29,7 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 600,
     show: false,
-    title: 'REST Client',
+    title: 'PostIt',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,

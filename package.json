@@ -14,8 +14,8 @@
     "make": "npm run build && electron-forge make"
   },
   "build": {
-    "appId": "com.mbokinala.rest-client",
-    "productName": "Rest Client",
+    "appId": "com.mbokinala.post-it",
+    "productName": "PostIt",
     "directories": {
       "out": "dist"
     },
