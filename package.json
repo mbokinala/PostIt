@@ -1,5 +1,5 @@
 {
-  "name": "rest-client",
+  "name": "post-it",
   "version": "0.1.0",
   "description": "A desktop REST client built with Electron and React",
   "main": "./dist/main/index.js",
