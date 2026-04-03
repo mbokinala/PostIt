@@ -1,6 +1,6 @@
 {
   "name": "post-it",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A desktop REST client built with Electron and React",
   "main": "./dist/main/index.js",
   "scripts": {
@@ -11,7 +11,8 @@
     "pack": "electron-vite build && electron-builder --mac",
     "start": "electron-forge start",
     "package": "npm run build && electron-forge package",
-    "make": "npm run build && electron-forge make"
+    "make": "npm run build && electron-forge make",
+    "release": "bash scripts/release.sh"
   },
   "build": {
     "appId": "com.mbokinala.post-it",
