@@ -32,3 +32,8 @@ coverage/
 
 # Electron Forge/Vite temp artifacts
 *.local
+
+.claude
+
+
+*.p8

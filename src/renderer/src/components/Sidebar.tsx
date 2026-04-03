@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRequestStore } from '../stores/requestStore'
 import { v4 as uuidv4 } from 'uuid'
-import type { HttpMethod } from '@shared/ipc'
+import type { HistoryEntry, HttpMethod } from '@shared/ipc'
+import { toCurl } from '../utils/toCurl'
 
 const METHOD_COLORS: Record<HttpMethod, string> = {
   GET: 'text-green-400',
@@ -10,7 +11,7 @@ const METHOD_COLORS: Record<HttpMethod, string> = {
   PATCH: 'text-orange-400',
   DELETE: 'text-red-400',
   HEAD: 'text-purple-400',
-  OPTIONS: 'text-gray-400',
+  OPTIONS: 'text-slate-400',
 }
 
 export default function Sidebar() {
@@ -31,11 +32,44 @@ export default function Sidebar() {
 
   const [newCollectionName, setNewCollectionName] = useState('')
   const [showNewCollection, setShowNewCollection] = useState(false)
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; entry: HistoryEntry } | null>(null)
+  const [copyToast, setCopyToast] = useState(false)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>()
 
   useEffect(() => {
     loadCollections()
     loadHistory()
   }, [loadCollections, loadHistory])
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const dismiss = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null)
+      }
+    }
+    const dismissKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setContextMenu(null)
+    }
+    document.addEventListener('mousedown', dismiss)
+    document.addEventListener('keydown', dismissKey)
+    return () => {
+      document.removeEventListener('mousedown', dismiss)
+      document.removeEventListener('keydown', dismissKey)
+    }
+  }, [contextMenu])
+
+  useEffect(() => () => clearTimeout(toastTimer.current), [])
+
+  const handleCopyAsCurl = (entry: HistoryEntry) => {
+    const curl = toCurl(entry.request)
+    navigator.clipboard.writeText(curl)
+    setContextMenu(null)
+    setCopyToast(true)
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setCopyToast(false), 2000)
+  }
 
   const handleSaveToCollection = (collectionId: string) => {
     const collection = collections.find((c) => c.id === collectionId)
@@ -74,14 +108,14 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-64 flex-shrink-0 border-r border-gray-700 bg-gray-900 flex flex-col">
+    <aside className="w-64 flex-shrink-0 border-r border-slate-700 bg-slate-900 flex flex-col relative">
       {/* Header */}
-      <div className="p-3 border-b border-gray-700">
+      <div className="p-3 border-b border-slate-700">
         <div className="flex items-center justify-between">
-          <h1 className="text-sm font-bold text-gray-200 tracking-wide uppercase">REST Client</h1>
+          <h1 className="text-sm font-bold text-slate-200 tracking-wide uppercase">REST Client</h1>
           <button
             onClick={resetRequest}
-            className="text-xs text-gray-500 hover:text-indigo-400 transition-colors"
+            className="text-xs text-slate-500 hover:text-blue-400 transition-colors"
             title="New request"
           >
             + New
@@ -90,13 +124,13 @@ export default function Sidebar() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex border-b border-gray-700">
+      <div className="flex border-b border-slate-700">
         <button
           onClick={() => setSidebarTab('collections')}
           className={`flex-1 py-2 text-xs font-medium transition-colors ${
             sidebarTab === 'collections'
-              ? 'text-indigo-400 border-b-2 border-indigo-500'
-              : 'text-gray-500 hover:text-gray-300'
+              ? 'text-blue-400 border-b-2 border-blue-500'
+              : 'text-slate-500 hover:text-slate-300'
           }`}
         >
           Collections
@@ -105,8 +139,8 @@ export default function Sidebar() {
           onClick={() => setSidebarTab('history')}
           className={`flex-1 py-2 text-xs font-medium transition-colors ${
             sidebarTab === 'history'
-              ? 'text-indigo-400 border-b-2 border-indigo-500'
-              : 'text-gray-500 hover:text-gray-300'
+              ? 'text-blue-400 border-b-2 border-blue-500'
+              : 'text-slate-500 hover:text-slate-300'
           }`}
         >
           History
@@ -127,12 +161,12 @@ export default function Sidebar() {
                   onChange={(e) => setNewCollectionName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateCollection()}
                   autoFocus
-                  className="w-full bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500"
                 />
                 <div className="flex gap-1">
                   <button
                     onClick={handleCreateCollection}
-                    className="flex-1 text-xs bg-indigo-600 hover:bg-indigo-500 text-white py-1 rounded transition-colors"
+                    className="flex-1 text-xs bg-blue-600 hover:bg-blue-500 text-white py-1 rounded transition-colors"
                   >
                     Create
                   </button>
@@ -141,7 +175,7 @@ export default function Sidebar() {
                       setShowNewCollection(false)
                       setNewCollectionName('')
                     }}
-                    className="flex-1 text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 py-1 rounded transition-colors"
+                    className="flex-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 py-1 rounded transition-colors"
                   >
                     Cancel
                   </button>
@@ -150,31 +184,31 @@ export default function Sidebar() {
             ) : (
               <button
                 onClick={() => setShowNewCollection(true)}
-                className="w-full text-left text-xs text-gray-500 hover:text-indigo-400 px-2 py-1.5 transition-colors"
+                className="w-full text-left text-xs text-slate-500 hover:text-blue-400 px-2 py-1.5 transition-colors"
               >
                 + New Collection
               </button>
             )}
 
             {collections.length === 0 && !showNewCollection && (
-              <p className="text-xs text-gray-600 px-2 py-4 text-center">No collections yet</p>
+              <p className="text-xs text-slate-600 px-2 py-4 text-center">No collections yet</p>
             )}
 
             {collections.map((collection) => (
               <div key={collection.id} className="group">
-                <div className="flex items-center justify-between px-2 py-1.5 text-sm text-gray-300 hover:bg-gray-800 rounded">
+                <div className="flex items-center justify-between px-2 py-1.5 text-sm text-slate-300 hover:bg-slate-800 rounded">
                   <span className="font-medium text-xs truncate">{collection.name}</span>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleSaveToCollection(collection.id)}
-                      className="text-xs text-gray-500 hover:text-indigo-400"
+                      className="text-xs text-slate-500 hover:text-blue-400"
                       title="Save current request here"
                     >
                       +
                     </button>
                     <button
                       onClick={() => deleteCollection(collection.id)}
-                      className="text-xs text-gray-500 hover:text-red-400"
+                      className="text-xs text-slate-500 hover:text-red-400"
                       title="Delete collection"
                     >
                       &times;
@@ -185,12 +219,12 @@ export default function Sidebar() {
                   <button
                     key={req.id}
                     onClick={() => setActiveRequest(req)}
-                    className="w-full text-left flex items-center gap-2 px-4 py-1 hover:bg-gray-800 rounded transition-colors"
+                    className="w-full text-left flex items-center gap-2 px-4 py-1 hover:bg-slate-800 rounded transition-colors"
                   >
                     <span className={`text-xs font-bold w-12 ${METHOD_COLORS[req.method]}`}>
                       {req.method}
                     </span>
-                    <span className="text-xs text-gray-400 truncate">
+                    <span className="text-xs text-slate-400 truncate">
                       {req.name || req.url || 'Untitled'}
                     </span>
                   </button>
@@ -205,30 +239,34 @@ export default function Sidebar() {
             {history.length > 0 && (
               <button
                 onClick={clearHistory}
-                className="w-full text-left text-xs text-gray-600 hover:text-red-400 px-2 py-1 transition-colors"
+                className="w-full text-left text-xs text-slate-600 hover:text-red-400 px-2 py-1 transition-colors"
               >
                 Clear History
               </button>
             )}
 
             {history.length === 0 && (
-              <p className="text-xs text-gray-600 px-2 py-4 text-center">No history yet</p>
+              <p className="text-xs text-slate-600 px-2 py-4 text-center">No history yet</p>
             )}
 
             {history.map((entry) => (
               <button
                 key={entry.id}
                 onClick={() => setActiveRequest(entry.request)}
-                className="w-full text-left flex items-center gap-2 px-2 py-1.5 hover:bg-gray-800 rounded transition-colors group"
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setContextMenu({ x: e.clientX, y: e.clientY, entry })
+                }}
+                className="w-full text-left flex items-center gap-2 px-2 py-1.5 hover:bg-slate-800 rounded transition-colors group"
               >
                 <span className={`text-xs font-bold w-12 flex-shrink-0 ${METHOD_COLORS[entry.request.method]}`}>
                   {entry.request.method}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <span className="text-xs text-gray-400 truncate block">
+                  <span className="text-xs text-slate-400 truncate block">
                     {entry.request.url || 'Untitled'}
                   </span>
-                  <span className="text-xs text-gray-600">{formatTimestamp(entry.timestamp)}</span>
+                  <span className="text-xs text-slate-600">{formatTimestamp(entry.timestamp)}</span>
                 </div>
                 <span
                   className={`text-xs font-mono flex-shrink-0 ${
@@ -246,6 +284,28 @@ export default function Sidebar() {
           </div>
         )}
       </div>
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed bg-slate-800 border border-slate-700 rounded-lg shadow-xl py-1 z-50"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            onClick={() => handleCopyAsCurl(contextMenu.entry)}
+            className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+          >
+            Copy as cURL
+          </button>
+        </div>
+      )}
+
+      {/* Copy toast */}
+      {copyToast && (
+        <div className="absolute bottom-3 left-3 right-3 px-3 py-1.5 bg-green-900/50 border border-green-700/50 rounded-lg text-green-300 text-xs font-medium animate-fade-in text-center">
+          Copied as cURL
+        </div>
+      )}
     </aside>
   )
 }

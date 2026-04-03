@@ -21,14 +21,14 @@ function App(): JSX.Element {
   }, [sendRequest, activeUrl, loading])
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-gray-900 text-gray-200">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-900 text-slate-200">
       {/* Sidebar */}
       <Sidebar />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Request Panel - top half */}
-        <div className="h-1/2 border-b border-gray-700 flex flex-col overflow-hidden">
+        <div className="h-1/2 border-b border-slate-700 flex flex-col overflow-hidden">
           <RequestPanel />
         </div>
 

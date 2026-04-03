@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { json } from '@codemirror/lang-json'
 import { useRequestStore } from '../stores/requestStore'
 import KeyValueEditor from './KeyValueEditor'
 import type { HttpMethod, BodyType } from '@shared/ipc'
 import { isCurlCommand, parseCurl } from '../utils/parseCurl'
+import { toCurl } from '../utils/toCurl'
 
 const METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
 
@@ -15,7 +16,7 @@ const METHOD_COLORS: Record<HttpMethod, string> = {
   PATCH: 'text-orange-400',
   DELETE: 'text-red-400',
   HEAD: 'text-purple-400',
-  OPTIONS: 'text-gray-400',
+  OPTIONS: 'text-slate-400',
 }
 
 type Tab = 'params' | 'headers' | 'cookies' | 'body'
@@ -50,13 +51,33 @@ export default function RequestPanel() {
     sendRequest()
   }
 
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>()
+
+  useEffect(() => () => clearTimeout(toastTimer.current), [])
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg)
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setToastMessage(null), 2000)
+  }
+
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const text = e.clipboardData.getData('text')
     if (isCurlCommand(text)) {
       e.preventDefault()
       const parsed = parseCurl(text)
-      if (parsed) importCurl(parsed)
+      if (parsed) {
+        importCurl(parsed)
+        showToast('Curl command imported')
+      }
     }
+  }
+
+  const handleCopyAsCurl = () => {
+    const curl = toCurl(activeRequest)
+    navigator.clipboard.writeText(curl)
+    showToast('Copied as cURL')
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -77,10 +98,10 @@ export default function RequestPanel() {
         <select
           value={activeRequest.method}
           onChange={(e) => updateMethod(e.target.value as HttpMethod)}
-          className={`bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer ${METHOD_COLORS[activeRequest.method]}`}
+          className={`bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 cursor-pointer ${METHOD_COLORS[activeRequest.method]}`}
         >
           {METHODS.map((m) => (
-            <option key={m} value={m} className="text-gray-200">
+            <option key={m} value={m} className="text-slate-200">
               {m}
             </option>
           ))}
@@ -93,14 +114,27 @@ export default function RequestPanel() {
           value={activeRequest.url}
           onChange={(e) => updateUrl(e.target.value)}
           onPaste={handlePaste}
-          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
         />
+
+        {/* Copy as cURL */}
+        <button
+          onClick={handleCopyAsCurl}
+          disabled={!activeRequest.url.trim()}
+          title="Copy as cURL"
+          className="bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800 disabled:text-slate-600 text-slate-300 border border-slate-700 px-2.5 py-2 rounded-lg text-sm transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+            <path fillRule="evenodd" d="M15.988 3.012A2.25 2.25 0 0118 5.25v6.5A2.25 2.25 0 0115.75 14H13.5v-3.379a3 3 0 00-.879-2.121l-3.12-3.121a3 3 0 00-1.402-.791 2.252 2.252 0 011.913-1.576A2.25 2.25 0 0112.25 1h1.5a2.25 2.25 0 012.238 2.012zM11.5 3.25a.75.75 0 01.75-.75h1.5a.75.75 0 01.75.75v.25a.75.75 0 01-.75.75h-1.5a.75.75 0 01-.75-.75v-.25z" clipRule="evenodd" />
+            <path d="M3.5 6A1.5 1.5 0 002 7.5v9A1.5 1.5 0 003.5 18h7a1.5 1.5 0 001.5-1.5v-5.879a1.5 1.5 0 00-.44-1.06L8.44 6.439A1.5 1.5 0 007.378 6H3.5z" />
+          </svg>
+        </button>
 
         {/* Send Button */}
         <button
           onClick={handleSend}
           disabled={loading || !activeRequest.url.trim()}
-          className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-500 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
+          className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors flex items-center gap-2"
         >
           {loading ? (
             <>
@@ -113,8 +147,15 @@ export default function RequestPanel() {
         </button>
       </div>
 
+      {/* Toast */}
+      {toastMessage && (
+        <div className="mx-3 mb-1 px-3 py-1.5 bg-green-900/50 border border-green-700/50 rounded-lg text-green-300 text-xs font-medium animate-fade-in">
+          {toastMessage}
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="flex items-center border-b border-gray-700 px-3">
+      <div className="flex items-center border-b border-slate-700 px-3">
         {(['params', 'headers', 'cookies', 'body'] as Tab[]).map((tab) => {
           const count =
             tab === 'params'
@@ -130,13 +171,13 @@ export default function RequestPanel() {
               onClick={() => setActiveTab(tab)}
               className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === tab
-                  ? 'border-indigo-500 text-indigo-400'
-                  : 'border-transparent text-gray-400 hover:text-gray-300'
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-300'
               }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
               {count > 0 && (
-                <span className="ml-1.5 bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded-full">
+                <span className="ml-1.5 bg-slate-700 text-slate-300 text-xs px-1.5 py-0.5 rounded-full">
                   {count}
                 </span>
               )}
@@ -169,8 +210,8 @@ export default function RequestPanel() {
                   onClick={() => updateBodyType(bt.value)}
                   className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     activeRequest.body.type === bt.value
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:text-gray-300 hover:bg-gray-750'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-800 text-slate-400 hover:text-slate-300 hover:bg-slate-750'
                   }`}
                 >
                   {bt.label}
@@ -180,13 +221,13 @@ export default function RequestPanel() {
 
             {/* Body Content */}
             {activeRequest.body.type === 'none' && (
-              <p className="text-sm text-gray-500 italic">
+              <p className="text-sm text-slate-500 italic">
                 This request does not have a body.
               </p>
             )}
 
             {activeRequest.body.type === 'json' && (
-              <div className="border border-gray-700 rounded-lg overflow-hidden">
+              <div className="border border-slate-700 rounded-lg overflow-hidden">
                 <CodeMirror
                   value={activeRequest.body.content}
                   onChange={updateBodyContent}
@@ -209,7 +250,7 @@ export default function RequestPanel() {
                 onChange={(e) => updateBodyContent(e.target.value)}
                 placeholder="Enter raw text body..."
                 rows={8}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-y font-mono"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-y font-mono"
               />
             )}
 

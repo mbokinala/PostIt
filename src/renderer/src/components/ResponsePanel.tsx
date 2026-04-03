@@ -23,7 +23,7 @@ function getStatusColor(status: number): string {
   if (status >= 300 && status < 400) return 'bg-yellow-600'
   if (status >= 400 && status < 500) return 'bg-red-500'
   if (status >= 500) return 'bg-red-700'
-  return 'bg-gray-600'
+  return 'bg-slate-600'
 }
 
 function detectContentType(headers: Record<string, string>): string {
@@ -54,9 +54,9 @@ export default function ResponsePanel() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500">
+      <div className="flex items-center justify-center h-full text-slate-500">
         <div className="flex items-center gap-3">
-          <span className="w-5 h-5 border-2 border-gray-600 border-t-indigo-500 rounded-full animate-spin" />
+          <span className="w-5 h-5 border-2 border-slate-600 border-t-blue-500 rounded-full animate-spin" />
           <span className="text-sm">Sending request...</span>
         </div>
       </div>
@@ -65,10 +65,10 @@ export default function ResponsePanel() {
 
   if (!activeResponse) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-600">
+      <div className="flex items-center justify-center h-full text-slate-600">
         <div className="text-center">
           <p className="text-sm">Response will appear here</p>
-          <p className="text-xs mt-1 text-gray-700">Send a request to get started</p>
+          <p className="text-xs mt-1 text-slate-700">Send a request to get started</p>
         </div>
       </div>
     )
@@ -101,16 +101,16 @@ export default function ResponsePanel() {
       )}
 
       {/* Status Bar */}
-      <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-700">
+      <div className="flex items-center gap-3 px-3 py-2 border-b border-slate-700">
         <span
           className={`${getStatusColor(activeResponse.status)} text-white text-xs font-bold px-2 py-0.5 rounded`}
         >
           {isError ? 'Error' : `${activeResponse.status} ${activeResponse.statusText}`}
         </span>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-slate-500">
           {formatTime(activeResponse.time)}
         </span>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-slate-500">
           {formatBytes(activeResponse.size)}
         </span>
 
@@ -122,13 +122,13 @@ export default function ResponsePanel() {
               onClick={() => setActiveTab(tab)}
               className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
                 activeTab === tab
-                  ? 'bg-gray-700 text-gray-200'
-                  : 'text-gray-500 hover:text-gray-300'
+                  ? 'bg-slate-700 text-slate-200'
+                  : 'text-slate-500 hover:text-slate-300'
               }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
               {tab === 'headers' && (
-                <span className="ml-1 text-gray-600">
+                <span className="ml-1 text-slate-600">
                   ({Object.keys(activeResponse.headers).length})
                 </span>
               )}
@@ -141,8 +141,8 @@ export default function ResponsePanel() {
               onClick={() => setPrettyPrint(!prettyPrint)}
               className={`px-2 py-1 text-xs rounded transition-colors ${
                 prettyPrint
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:text-gray-300'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-800 text-slate-400 hover:text-slate-300'
               }`}
             >
               Pretty
@@ -171,20 +171,20 @@ export default function ResponsePanel() {
         {activeTab === 'headers' && (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left text-xs text-gray-500 font-medium uppercase tracking-wider px-3 py-2">
+              <tr className="border-b border-slate-700">
+                <th className="text-left text-xs text-slate-500 font-medium uppercase tracking-wider px-3 py-2">
                   Header
                 </th>
-                <th className="text-left text-xs text-gray-500 font-medium uppercase tracking-wider px-3 py-2">
+                <th className="text-left text-xs text-slate-500 font-medium uppercase tracking-wider px-3 py-2">
                   Value
                 </th>
               </tr>
             </thead>
             <tbody>
               {Object.entries(activeResponse.headers).map(([key, value]) => (
-                <tr key={key} className="border-b border-gray-800 hover:bg-gray-800/50">
-                  <td className="px-3 py-1.5 text-indigo-400 font-mono">{key}</td>
-                  <td className="px-3 py-1.5 text-gray-300 font-mono break-all">{value}</td>
+                <tr key={key} className="border-b border-slate-800 hover:bg-slate-800/50">
+                  <td className="px-3 py-1.5 text-blue-400 font-mono">{key}</td>
+                  <td className="px-3 py-1.5 text-slate-300 font-mono break-all">{value}</td>
                 </tr>
               ))}
             </tbody>
@@ -202,7 +202,7 @@ export default function ResponsePanel() {
             <pre className="p-3 text-xs font-mono text-green-300 whitespace-pre-wrap break-all leading-relaxed">
               {activeResponse.rawRequest || '(no request data)'}
               {'\n\n'}
-              <span className="text-gray-500">{'─'.repeat(40)}</span>
+              <span className="text-slate-500">{'─'.repeat(40)}</span>
               {'\n\n'}
               {rawResponse}
             </pre>
