@@ -52,6 +52,7 @@ struct SidebarView: View {
                     .buttonStyle(.plain)
                     .help("New Collection")
                 }
+                .padding(.trailing, 16)
             }
 
             Section {
@@ -81,6 +82,7 @@ struct SidebarView: View {
                         .help("Clear History")
                     }
                 }
+                .padding(.trailing, 16)
             }
         }
         .listStyle(.sidebar)

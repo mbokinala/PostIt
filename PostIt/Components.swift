@@ -57,6 +57,7 @@ struct KeyValueEditor: View {
                                     .foregroundStyle(.tertiary)
                             }
                             .buttonStyle(.plain)
+                            .frame(width: 24, height: 24)
                             .help("Remove row")
                         }
                         .padding(.horizontal, 10)
@@ -88,18 +89,81 @@ struct KeyValueEditor: View {
     }
 }
 
+struct CodeEditor: NSViewRepresentable {
+    @Binding var text: String
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSTextView.scrollableTextView()
+        guard let textView = scrollView.documentView as? NSTextView else { return scrollView }
+
+        textView.delegate = context.coordinator
+        textView.string = text
+        textView.font = .monospacedSystemFont(
+            ofSize: NSFont.systemFontSize,
+            weight: .regular
+        )
+        textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.isRichText = false
+        textView.allowsUndo = true
+        textView.usesFindPanel = true
+        textView.drawsBackground = false
+        textView.isContinuousSpellCheckingEnabled = false
+        textView.isAutomaticSpellingCorrectionEnabled = false
+        textView.isAutomaticTextReplacementEnabled = false
+        textView.isAutomaticQuoteSubstitutionEnabled = false
+        textView.isAutomaticDashSubstitutionEnabled = false
+        textView.isAutomaticLinkDetectionEnabled = false
+        textView.isAutomaticDataDetectionEnabled = false
+        scrollView.drawsBackground = false
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        context.coordinator.text = $text
+        guard let textView = scrollView.documentView as? NSTextView,
+              textView.string != text else { return }
+        textView.string = text
+    }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var text: Binding<String>
+
+        init(text: Binding<String>) {
+            self.text = text
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            text.wrappedValue = textView.string
+        }
+    }
+}
+
 struct CodeSurface: View {
     let text: AttributedString
 
     var body: some View {
-        ScrollView([.horizontal, .vertical]) {
-            Text(text)
-                .font(.system(.body, design: .monospaced))
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(14)
+        GeometryReader { geometry in
+            ScrollView([.horizontal, .vertical]) {
+                Text(text)
+                    .font(.system(.body, design: .monospaced))
+                    .textSelection(.enabled)
+                    .padding(14)
+                    .frame(
+                        minWidth: geometry.size.width,
+                        minHeight: geometry.size.height,
+                        alignment: .topLeading
+                    )
+            }
         }
-        .background(Color(nsColor: .textBackgroundColor))
+        .background {
+            Color(nsColor: .textBackgroundColor)
+                .overlay(Color.primary.opacity(0.03))
+        }
     }
 }
 

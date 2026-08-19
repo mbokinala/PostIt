@@ -163,7 +163,10 @@ struct ResponseView: View {
         guard prettyPrintJSON,
               let data = body.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data),
-              let formatted = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
+              let formatted = try? JSONSerialization.data(
+                withJSONObject: object,
+                options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+              ),
               let string = String(data: formatted, encoding: .utf8) else { return body }
         return string
     }

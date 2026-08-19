@@ -196,10 +196,8 @@ private struct BodyEditor: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .json, .text:
-                TextEditor(text: $request.rawBody)
-                    .font(.system(.body, design: .monospaced))
-                    .scrollContentBackground(.hidden)
-                    .padding(8)
+                CodeEditor(text: $request.rawBody)
+                    .accessibilityLabel("Request body")
                     .background(Color(nsColor: .textBackgroundColor))
             case .formData:
                 KeyValueEditor(items: $request.formData, keyTitle: "Field", valueTitle: "Value")
