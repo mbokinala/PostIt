@@ -1,0 +1,233 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    env:
+      APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_API_PRIVATE_KEY_BASE64 }}
+      BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      BUILD_CERTIFICATE_PASSWORD: ${{ secrets.BUILD_CERTIFICATE_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Validate release version and secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag must use the form v1.2.3" >&2
+            exit 1
+          fi
+
+          project_version="$(sed -n 's/^[[:space:]]*MARKETING_VERSION = \([^;]*\);/\1/p' PostIt.xcodeproj/project.pbxproj | sort -u)"
+          if [[ "$project_version" != "$version" ]]; then
+            echo "Tag version $version does not match MARKETING_VERSION $project_version" >&2
+            exit 1
+          fi
+
+          for secret_name in \
+            APPLE_API_ISSUER_ID \
+            APPLE_API_KEY_ID \
+            APPLE_API_PRIVATE_KEY_BASE64 \
+            BUILD_CERTIFICATE_BASE64 \
+            BUILD_CERTIFICATE_PASSWORD \
+            KEYCHAIN_PASSWORD \
+            SPARKLE_PRIVATE_KEY; do
+            if [[ -z "${!secret_name}" ]]; then
+              echo "Missing required GitHub Actions secret: $secret_name" >&2
+              exit 1
+            fi
+          done
+
+          IFS=. read -r major minor patch <<< "$version"
+          build_number=$((10#$major * 1000000 + 10#$minor * 1000 + 10#$patch))
+
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$build_number" >> "$GITHUB_ENV"
+          echo "ARCHIVE_PATH=$RUNNER_TEMP/PostIt.xcarchive" >> "$GITHUB_ENV"
+          echo "EXPORT_PATH=$RUNNER_TEMP/export" >> "$GITHUB_ENV"
+          echo "RELEASE_PATH=$RUNNER_TEMP/release" >> "$GITHUB_ENV"
+
+      - name: Import Developer ID certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          certificate_path="$RUNNER_TEMP/developer-id.p12"
+          keychain_path="$RUNNER_TEMP/postit-signing.keychain-db"
+
+          printf '%s' "$BUILD_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+          security import "$certificate_path" \
+            -P "$BUILD_CERTIFICATE_PASSWORD" \
+            -A \
+            -f pkcs12 \
+            -k "$keychain_path" \
+            -t cert
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+
+      - name: Resolve dependencies
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project PostIt.xcodeproj \
+            -scheme PostIt \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
+
+      - name: Archive and export
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          xcodebuild archive \
+            -project PostIt.xcodeproj \
+            -scheme PostIt \
+            -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "$ARCHIVE_PATH" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            ARCHS='arm64 x86_64' \
+            ONLY_ACTIVE_ARCH=NO \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY='Developer ID Application' \
+            DEVELOPMENT_TEAM=4XUDFLD5RY
+
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist .github/ExportOptions.plist
+
+      - name: Verify exported app
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          app_path="$EXPORT_PATH/PostIt.app"
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          lipo -info "$app_path/Contents/MacOS/PostIt"
+
+          test "$(defaults read "$app_path/Contents/Info" CFBundleShortVersionString)" = "$VERSION"
+          test "$(defaults read "$app_path/Contents/Info" CFBundleVersion)" = "$BUILD_NUMBER"
+          test "$(defaults read "$app_path/Contents/Info" LSMinimumSystemVersion)" = "26.0"
+
+      - name: Create, sign, and notarize disk image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          stage_path="$RUNNER_TEMP/dmg-stage"
+          dmg_path="$RELEASE_PATH/PostIt-$VERSION.dmg"
+          api_key_path="$RUNNER_TEMP/AuthKey_$APPLE_API_KEY_ID.p8"
+
+          mkdir -p "$stage_path" "$RELEASE_PATH"
+          ditto "$EXPORT_PATH/PostIt.app" "$stage_path/PostIt.app"
+          ln -s /Applications "$stage_path/Applications"
+
+          hdiutil create \
+            -volname PostIt \
+            -srcfolder "$stage_path" \
+            -ov \
+            -format UDZO \
+            "$dmg_path"
+
+          codesign \
+            --force \
+            --sign 'Developer ID Application' \
+            --timestamp \
+            "$dmg_path"
+
+          printf '%s' "$APPLE_API_PRIVATE_KEY_BASE64" | base64 --decode > "$api_key_path"
+          chmod 600 "$api_key_path"
+
+          xcrun notarytool submit "$dmg_path" \
+            --key "$api_key_path" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER_ID" \
+            --wait
+
+          xcrun stapler staple "$dmg_path"
+          xcrun stapler validate "$dmg_path"
+          codesign --verify --verbose=2 "$dmg_path"
+          spctl --assess \
+            --type open \
+            --context context:primary-signature \
+            --verbose=2 \
+            "$dmg_path"
+
+      - name: Generate signed Sparkle feed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          dmg_path="$RELEASE_PATH/PostIt-$VERSION.dmg"
+          notes_path="$RELEASE_PATH/PostIt-$VERSION.md"
+          release_notes_path="$RUNNER_TEMP/release-notes.md"
+          generate_appcast="$(find "$RUNNER_TEMP/SourcePackages" -type f -path '*/Sparkle/bin/generate_appcast' -perm -111 -print -quit)"
+
+          if [[ -z "$generate_appcast" ]]; then
+            echo "Could not locate Sparkle's generate_appcast tool" >&2
+            exit 1
+          fi
+
+          printf '# PostIt %s\n\n- Rebuilt as a native SwiftUI macOS app.\n- Added secure in-app updates with Sparkle.\n- Requires macOS 26 or later.\n' "$VERSION" > "$release_notes_path"
+          cp "$release_notes_path" "$notes_path"
+
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | "$generate_appcast" \
+            --ed-key-file - \
+            --download-url-prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/" \
+            --embed-release-notes \
+            --link "https://github.com/$GITHUB_REPOSITORY" \
+            -o "$RELEASE_PATH/appcast.xml" \
+            "$RELEASE_PATH"
+
+          test -s "$dmg_path"
+          test -s "$RELEASE_PATH/appcast.xml"
+
+      - name: Publish GitHub release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists" >&2
+            exit 1
+          fi
+
+          gh release create "$GITHUB_REF_NAME" \
+            "$RELEASE_PATH/PostIt-$VERSION.dmg" \
+            "$RELEASE_PATH/appcast.xml" \
+            --latest \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            --title "PostIt $VERSION" \
+            --verify-tag

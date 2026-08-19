@@ -5,10 +5,17 @@
 //  Created by Manav Bokinala on 8/19/26.
 //
 
+import Sparkle
 import SwiftUI
 
 @main
 struct PostItApp: App {
+    private let updaterController = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil
+    )
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -21,6 +28,11 @@ struct PostItApp: App {
                     NotificationCenter.default.post(name: .newPostItRequest, object: nil)
                 }
                 .keyboardShortcut("n", modifiers: .command)
+            }
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    updaterController.checkForUpdates(nil)
+                }
             }
         }
     }
